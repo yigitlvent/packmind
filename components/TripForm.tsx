@@ -1,7 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
-import { flushSync } from "react-dom";
+import { useLayoutEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -30,6 +29,18 @@ import {
   type TripType,
   type Weather,
 } from "@/types/trip";
+
+function writeNativeDate(
+  el: HTMLInputElement | null,
+  value: string,
+  options?: { preserveIfAlready?: boolean },
+) {
+  if (!el) return;
+  // iOS Reset restores to defaultValue. Keep it empty so Reset can clear.
+  el.defaultValue = "";
+  if (options?.preserveIfAlready && el.value === value) return;
+  el.value = value;
+}
 
 const EMPTY_TRIP: TripFormValues = {
   destination: "",
@@ -69,6 +80,13 @@ export function TripForm({
   const [attempted, setAttempted] = useState(false);
   const [destinationSearchFailed, setDestinationSearchFailed] = useState(false);
   const [endRejected, setEndRejected] = useState(false);
+  const allowEndNormalizeRef = useRef(true);
+  const startInputRef = useRef<HTMLInputElement>(null);
+  const endInputRef = useRef<HTMLInputElement>(null);
+  const initialDatesRef = useRef({
+    start_date: initialValues.start_date,
+    end_date: initialValues.end_date,
+  });
   const [touched, setTouched] = useState({
     destination: false,
     start_date: false,
@@ -155,6 +173,11 @@ export function TripForm({
     }));
   }
 
+  useLayoutEffect(() => {
+    writeNativeDate(startInputRef.current, initialDatesRef.current.start_date);
+    writeNativeDate(endInputRef.current, initialDatesRef.current.end_date);
+  }, []);
+
   function applyDateState(start_date: string, end_date: string) {
     setForm((current) => ({
       ...current,
@@ -170,9 +193,18 @@ export function TripForm({
   }
 
   function updateDates(next: { start_date?: string; end_date?: string }) {
+    if (next.end_date === "") {
+      allowEndNormalizeRef.current = false;
+    }
+    if (next.start_date !== undefined && next.start_date === "") {
+      allowEndNormalizeRef.current = false;
+    }
+
     setForm((current) => {
-      const start_date = next.start_date ?? current.start_date;
-      let end_date = next.end_date ?? current.end_date;
+      const start_date =
+        next.start_date !== undefined ? next.start_date : current.start_date;
+      let end_date =
+        next.end_date !== undefined ? next.end_date : current.end_date;
       if (next.start_date !== undefined && !parseIsoDate(start_date)) {
         end_date = "";
       }
@@ -189,27 +221,38 @@ export function TripForm({
       };
     });
 
+    if (next.start_date !== undefined && !parseIsoDate(next.start_date)) {
+      writeNativeDate(endInputRef.current, "");
+    }
+
     if (next.start_date !== undefined) {
+      writeNativeDate(
+        startInputRef.current,
+        next.start_date,
+        { preserveIfAlready: true },
+      );
       setEndRejected(false);
-    } else if (
-      next.end_date !== undefined &&
-      !isEndBeforeStart(form.start_date, next.end_date)
-    ) {
-      setEndRejected(false);
+    } else if (next.end_date !== undefined) {
+      writeNativeDate(endInputRef.current, next.end_date, {
+        preserveIfAlready: true,
+      });
+      if (next.end_date !== "" && !isEndBeforeStart(form.start_date, next.end_date)) {
+        setEndRejected(false);
+      }
     }
   }
 
   function normalizeEndBeforePicker(input: HTMLInputElement) {
+    if (!allowEndNormalizeRef.current) return;
+
     const start_date = form.start_date;
     if (!parseIsoDate(start_date)) return;
     const end_date = alignEndToStart(start_date, form.end_date);
     if (end_date === form.end_date) return;
 
-    input.value = end_date;
-    flushSync(() => {
-      applyDateState(start_date, end_date);
-      setEndRejected(false);
-    });
+    writeNativeDate(input, end_date);
+    applyDateState(start_date, end_date);
+    setEndRejected(false);
   }
 
   async function handleSubmit(event: FormEvent) {
@@ -337,16 +380,23 @@ export function TripForm({
         <Field label="Start date" htmlFor="start_date">
           <span className="date-field">
             <input
+              ref={startInputRef}
               id="start_date"
               name="start_date"
               type="date"
-              value={form.start_date}
+              defaultValue=""
+              onInput={(event) =>
+                updateDates({ start_date: event.currentTarget.value })
+              }
               onChange={(event) =>
-                updateDates({ start_date: event.target.value })
+                updateDates({ start_date: event.currentTarget.value })
               }
-              onBlur={() =>
-                setTouched((current) => ({ ...current, start_date: true }))
-              }
+              onBlur={() => {
+                updateDates({
+                  start_date: startInputRef.current?.value ?? "",
+                });
+                setTouched((current) => ({ ...current, start_date: true }));
+              }}
               aria-invalid={Boolean(showStartError)}
               className="input"
             />
@@ -358,22 +408,32 @@ export function TripForm({
         <Field label="End date" htmlFor="end_date">
           <span className="date-field">
             <input
+              ref={endInputRef}
               id="end_date"
               name="end_date"
               type="date"
-              value={form.end_date}
+              defaultValue=""
               min={form.start_date || undefined}
               onPointerDown={(event) =>
                 normalizeEndBeforePicker(event.currentTarget)
               }
-              onFocus={(event) =>
-                normalizeEndBeforePicker(event.currentTarget)
+              onInput={(event) =>
+                updateDates({ end_date: event.currentTarget.value })
               }
-              onChange={(event) => updateDates({ end_date: event.target.value })}
+              onChange={(event) =>
+                updateDates({ end_date: event.currentTarget.value })
+              }
               onBlur={() => {
+                allowEndNormalizeRef.current = true;
+                updateDates({
+                  end_date: endInputRef.current?.value ?? "",
+                });
                 setTouched((current) => ({ ...current, end_date: true }));
                 setEndRejected(
-                  isEndBeforeStart(form.start_date, form.end_date),
+                  isEndBeforeStart(
+                    form.start_date,
+                    endInputRef.current?.value ?? "",
+                  ),
                 );
               }}
               aria-invalid={Boolean(showEndError)}
