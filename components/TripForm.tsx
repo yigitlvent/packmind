@@ -1,6 +1,7 @@
 "use client";
 
 import { useLayoutEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { flushSync } from "react-dom";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -193,13 +194,6 @@ export function TripForm({
   }
 
   function updateDates(next: { start_date?: string; end_date?: string }) {
-    if (next.end_date === "") {
-      allowEndNormalizeRef.current = false;
-    }
-    if (next.start_date !== undefined && next.start_date === "") {
-      allowEndNormalizeRef.current = false;
-    }
-
     setForm((current) => {
       const start_date =
         next.start_date !== undefined ? next.start_date : current.start_date;
@@ -242,17 +236,27 @@ export function TripForm({
     }
   }
 
+  function commitEndFromNative(value: string) {
+    if (value === "") {
+      allowEndNormalizeRef.current = false;
+    }
+    updateDates({ end_date: value });
+  }
+
   function normalizeEndBeforePicker(input: HTMLInputElement) {
     if (!allowEndNormalizeRef.current) return;
 
-    const start_date = form.start_date;
+    const start_date = startInputRef.current?.value || form.start_date;
     if (!parseIsoDate(start_date)) return;
-    const end_date = alignEndToStart(start_date, form.end_date);
-    if (end_date === form.end_date) return;
 
-    writeNativeDate(input, end_date);
-    applyDateState(start_date, end_date);
-    setEndRejected(false);
+    const aligned = alignEndToStart(start_date, input.value);
+    if (input.value === aligned && form.end_date === aligned) return;
+
+    writeNativeDate(input, aligned);
+    flushSync(() => {
+      applyDateState(start_date, aligned);
+      setEndRejected(false);
+    });
   }
 
   async function handleSubmit(event: FormEvent) {
@@ -418,10 +422,10 @@ export function TripForm({
                 normalizeEndBeforePicker(event.currentTarget)
               }
               onInput={(event) =>
-                updateDates({ end_date: event.currentTarget.value })
+                commitEndFromNative(event.currentTarget.value)
               }
               onChange={(event) =>
-                updateDates({ end_date: event.currentTarget.value })
+                commitEndFromNative(event.currentTarget.value)
               }
               onBlur={() => {
                 allowEndNormalizeRef.current = true;
