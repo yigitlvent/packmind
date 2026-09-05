@@ -52,6 +52,7 @@ export function AccountMenu() {
       setError(
         err instanceof Error ? err.message : "Could not start Google sign-in.",
       );
+    } finally {
       setPending(null);
     }
   }
@@ -65,6 +66,7 @@ export function AccountMenu() {
       router.replace("/");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not sign out.");
+    } finally {
       setPending(null);
     }
   }
