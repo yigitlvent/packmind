@@ -198,3 +198,7 @@ export function runFinalCheck(ctx: FinalCheckContext): FinalCheckWarning[] {
 export function getUnpackedItems(items: PackingItem[]): PackingItem[] {
   return items.filter((item) => !item.is_packed);
 }
+
+export function areAllItemsPacked(items: PackingItem[]) {
+  return items.length > 0 && items.every((item) => item.is_packed);
+}

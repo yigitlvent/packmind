@@ -6,7 +6,11 @@ import { useParams, useRouter } from "next/navigation";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { WarningCard } from "@/components/WarningCard";
 import { useAuth } from "@/components/AuthProvider";
-import { getUnpackedItems, runFinalCheck } from "@/lib/finalCheckRules";
+import {
+  areAllItemsPacked,
+  getUnpackedItems,
+  runFinalCheck,
+} from "@/lib/finalCheckRules";
 import { useTrip } from "@/lib/useTrip";
 
 export default function FinalCheckPage() {
@@ -14,7 +18,7 @@ export default function FinalCheckPage() {
   const router = useRouter();
   const { trip, items, loading, error } = useTrip(params.id);
   const { account } = useAuth();
-  const [ready, setReady] = useState(false);
+  const [continuedAnyway, setContinuedAnyway] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const firstName = account?.isGoogle ? account.firstName : null;
   const successHeadline = firstName
@@ -29,12 +33,14 @@ export default function FinalCheckPage() {
   const warnings = trip ? runFinalCheck({ trip, items }) : [];
   const unpackedItems = getUnpackedItems(items);
   const unpackedCount = unpackedItems.length;
-  const isReady = unpackedCount === 0;
-  const summary = isReady
-    ? "You look ready to go."
-    : unpackedCount === 1
+  const allPacked = areAllItemsPacked(items);
+  const showSuccess = Boolean(trip) && !loading && !error && (allPacked || continuedAnyway);
+  const summary =
+    unpackedCount === 1
       ? "You still have 1 unpacked item."
-      : `You still have ${unpackedCount} unpacked items.`;
+      : unpackedCount > 1
+        ? `You still have ${unpackedCount} unpacked items.`
+        : "Your packing list is empty.";
   const confirmMessage =
     unpackedCount === 1
       ? "You still have 1 item that isn't marked as packed. Are you sure you want to continue?"
@@ -57,7 +63,7 @@ export default function FinalCheckPage() {
               Plan a trip
             </Link>
           </div>
-        ) : ready && trip ? (
+        ) : showSuccess && trip ? (
           <div className="mt-8 rounded-[2rem] border border-sand-200 bg-white p-8 text-center shadow-sm">
             <p className="text-sm font-medium tracking-[0.18em] text-teal-800 uppercase">
               Ready
@@ -66,7 +72,7 @@ export default function FinalCheckPage() {
               {successHeadline}
             </h1>
             <p className="mt-4 text-lg leading-8 text-ink-soft">
-              {isReady
+              {allPacked
                 ? "Everything on your packing list is ready to go."
                 : "You’re heading out with some items still unpacked."}
             </p>
@@ -90,12 +96,6 @@ export default function FinalCheckPage() {
             <p className="mt-4 font-serif text-2xl leading-snug text-ink sm:text-3xl">
               {summary}
             </p>
-            {isReady ? (
-              <p className="mt-3 text-ink-soft">
-                Everything on your list is marked as packed.
-              </p>
-            ) : null}
-
             <div className="mt-8 space-y-8">
               {unpackedCount > 0 ? (
                 <section>
@@ -132,23 +132,15 @@ export default function FinalCheckPage() {
 
             <div className="mt-10 flex flex-col gap-3 sm:flex-row">
               {trip ? (
-            <Link
-              href={`/trip/${trip.id}`}
-              prefetch
-              className={`${isReady ? "btn-secondary" : "btn-primary"} w-full sm:w-auto`}
-            >
+                <Link
+                  href={`/trip/${trip.id}`}
+                  prefetch
+                  className="btn-primary w-full sm:w-auto"
+                >
                   Back to Packing
                 </Link>
               ) : null}
-              {isReady ? (
-                <button
-                  type="button"
-                  onClick={() => setReady(true)}
-                  className="btn-primary w-full sm:w-auto"
-                >
-                  I’m Ready
-                </button>
-              ) : (
+              {unpackedCount > 0 ? (
                 <button
                   type="button"
                   onClick={() => setConfirmOpen(true)}
@@ -156,7 +148,7 @@ export default function FinalCheckPage() {
                 >
                   Continue Anyway
                 </button>
-              )}
+              ) : null}
             </div>
             <ConfirmDialog
               open={confirmOpen}
@@ -167,7 +159,7 @@ export default function FinalCheckPage() {
               onCancel={() => setConfirmOpen(false)}
               onConfirm={() => {
                 setConfirmOpen(false);
-                setReady(true);
+                setContinuedAnyway(true);
               }}
             />
           </>
