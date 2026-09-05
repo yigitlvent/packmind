@@ -15,7 +15,7 @@ export default function NewTripPage() {
           PackMind builds a list from your context, then watches for the
           mistakes that usually show up at the airport.
         </p>
-        <div className="mt-8 rounded-[2rem] border border-sand-200 bg-white p-5 shadow-sm sm:p-8">
+        <div className="mt-8 min-w-0 rounded-[2rem] border border-sand-200 bg-white p-5 shadow-sm sm:p-8">
           <TripForm />
         </div>
         <RecentTrips />

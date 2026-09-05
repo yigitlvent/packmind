@@ -7,6 +7,7 @@ import {
   datesAreValid,
   diffDaysInclusive,
   formatDateRange,
+  isEndBeforeStart,
   parseIsoDate,
 } from "@/lib/dates";
 import { DestinationField } from "@/components/DestinationField";
@@ -146,7 +147,10 @@ export function TripForm({
   function updateDates(next: { start_date?: string; end_date?: string }) {
     setForm((current) => {
       const start_date = next.start_date ?? current.start_date;
-      const end_date = next.end_date ?? current.end_date;
+      let end_date = next.end_date ?? current.end_date;
+      if (isEndBeforeStart(start_date, end_date)) {
+        end_date = "";
+      }
       return {
         ...current,
         start_date,
@@ -250,7 +254,7 @@ export function TripForm({
     <form
       onSubmit={handleSubmit}
       noValidate
-      className="space-y-8"
+      className="min-w-0 space-y-8"
       aria-busy={submitting}
     >
       <Field label="Destination" htmlFor="destination">
@@ -275,7 +279,7 @@ export function TripForm({
         ) : null}
       </Field>
 
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2">
         <Field label="Start date" htmlFor="start_date">
           <input
             id="start_date"
@@ -381,7 +385,7 @@ export function TripForm({
         {showTripTypeError ? (
           <p className="mb-3 text-sm text-amber-800">{tripTypeError}</p>
         ) : null}
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+        <div className="grid grid-cols-2 gap-2">
           {TRIP_TYPE_OPTIONS.map((option) => (
             <ChoiceButton
               key={option.value}
@@ -605,7 +609,7 @@ function Field({
   children: ReactNode;
 }) {
   return (
-    <div>
+    <div className="min-w-0">
       <label htmlFor={htmlFor} className="mb-2 block text-sm font-medium text-ink">
         {label}
       </label>
@@ -627,7 +631,7 @@ function ChoiceButton({
     <button
       type="button"
       onClick={onClick}
-      className={`rounded-2xl border px-4 py-3 text-sm font-medium transition-colors ${
+      className={`w-full rounded-2xl border px-4 py-3 text-sm font-medium transition-colors ${
         selected
           ? "border-teal-700 bg-teal-50 text-teal-900"
           : "border-sand-200 bg-white text-ink-soft hover:border-sand-300"

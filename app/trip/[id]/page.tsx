@@ -19,7 +19,7 @@ import { waitForPersist } from "@/lib/tripStore";
 import type { AddCustomItemResult } from "@/lib/trips";
 import { useTrip } from "@/lib/useTrip";
 import { CATEGORY_ORDER, type PackingItem } from "@/types/packing";
-import { TRIP_TYPE_LABELS } from "@/types/trip";
+import { tripTypeLabel } from "@/types/trip";
 
 export default function TripPackingPage() {
   const params = useParams<{ id: string }>();
@@ -155,7 +155,7 @@ export default function TripPackingPage() {
               {trip.destination}
             </h1>
             <p className="mt-2 text-ink-soft">
-              {trip.duration}-day {TRIP_TYPE_LABELS[trip.trip_type]}
+              {trip.duration}-day {tripTypeLabel(trip.trip_type)}
             </p>
             <Link
               href={`/trip/${trip.id}/edit`}

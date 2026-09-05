@@ -41,6 +41,13 @@ export function datesAreValid(startIso: string, endIso: string) {
   return days >= 1 && days <= 90;
 }
 
+export function isEndBeforeStart(startIso: string, endIso: string) {
+  const start = parseIsoDate(startIso);
+  const end = parseIsoDate(endIso);
+  if (!start || !end) return false;
+  return end.getTime() < start.getTime();
+}
+
 export function daysFromToday(iso: string) {
   const date = parseIsoDate(iso);
   if (!date) return Number.POSITIVE_INFINITY;

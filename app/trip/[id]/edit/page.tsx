@@ -48,7 +48,7 @@ export default function EditTripPage() {
               PackMind will adjust the generated list and keep packed items and
               anything you added yourself.
             </p>
-            <div className="mt-8 rounded-[2rem] border border-sand-200 bg-white p-5 shadow-sm sm:p-8">
+            <div className="mt-8 min-w-0 rounded-[2rem] border border-sand-200 bg-white p-5 shadow-sm sm:p-8">
               <TripForm
                 mode="edit"
                 tripId={trip.id}

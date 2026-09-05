@@ -32,7 +32,10 @@ body {
 }
 
 .input {
+  box-sizing: border-box;
   width: 100%;
+  max-width: 100%;
+  min-width: 0;
   border-radius: 1rem;
   border: 1px solid var(--color-sand-200);
   background: #fff;
@@ -40,6 +43,13 @@ body {
   font-size: 1rem;
   color: var(--color-ink);
   outline: none;
+}
+
+input[type="date"].input {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
 }
 
 .input:focus {

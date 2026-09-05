@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useAuth } from "@/components/AuthProvider";
 import { listSessionTrips } from "@/lib/trips";
 import type { Trip } from "@/types/trip";
-import { TRIP_TYPE_LABELS } from "@/types/trip";
+import { tripTypeLabel } from "@/types/trip";
 
 export function RecentTrips() {
   const { account } = useAuth();
@@ -47,7 +47,7 @@ export function RecentTrips() {
                   {trip.destination}
                 </span>
                 <span className="text-sm text-ink-muted">
-                  {trip.duration}-day {TRIP_TYPE_LABELS[trip.trip_type]}
+                  {trip.duration}-day {tripTypeLabel(trip.trip_type)}
                 </span>
               </span>
               <span className="text-sm text-teal-800">Open</span>
