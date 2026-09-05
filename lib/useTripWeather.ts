@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { datesAreValid } from "@/lib/dates";
+import { datesAreOrdered, datesAreValid } from "@/lib/dates";
 import { hasResolvedCoordinates } from "@/lib/geocoding";
 import { fetchTripWeather } from "@/lib/weather";
 import {
@@ -53,6 +53,7 @@ export function tripWeatherQueryKey(
 ) {
   if (
     !hasResolvedCoordinates(latitude, longitude) ||
+    !datesAreOrdered(startDate, endDate) ||
     !datesAreValid(startDate, endDate)
   ) {
     return "";

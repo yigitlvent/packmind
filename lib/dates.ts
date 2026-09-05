@@ -48,6 +48,21 @@ export function isEndBeforeStart(startIso: string, endIso: string) {
   return end.getTime() < start.getTime();
 }
 
+export function datesAreOrdered(startIso: string, endIso: string) {
+  const start = parseIsoDate(startIso);
+  const end = parseIsoDate(endIso);
+  if (!start || !end) return false;
+  return end.getTime() >= start.getTime();
+}
+
+export function alignEndToStart(startIso: string, endIso: string) {
+  if (!parseIsoDate(startIso)) return "";
+  if (!parseIsoDate(endIso) || isEndBeforeStart(startIso, endIso)) {
+    return startIso;
+  }
+  return endIso;
+}
+
 export function daysFromToday(iso: string) {
   const date = parseIsoDate(iso);
   if (!date) return Number.POSITIVE_INFINITY;

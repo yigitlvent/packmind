@@ -1,9 +1,9 @@
 import {
   addDaysIso,
+  alignEndToStart,
   datesAreValid,
   defaultTripDates,
   diffDaysInclusive,
-  isEndBeforeStart,
 } from "@/lib/dates";
 import { isWeatherProfile, type WeatherProfile } from "@/lib/weatherProfile";
 
@@ -72,7 +72,7 @@ export function tripToFormValues(trip: Trip): CreateTripInput {
     trip.start_date ?? trip.created_at.slice(0, 10) ?? fallback.start_date;
   const derivedEnd =
     trip.end_date ?? addDaysIso(start_date, Math.max(1, trip.duration) - 1);
-  const end_date = isEndBeforeStart(start_date, derivedEnd) ? "" : derivedEnd;
+  const end_date = alignEndToStart(start_date, derivedEnd);
 
   return {
     destination: trip.destination,

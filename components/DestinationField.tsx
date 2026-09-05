@@ -133,7 +133,7 @@ export function DestinationField({
     showPanel && !loading && !failed && visibleSuggestions.length === 0;
 
   return (
-    <div className="relative">
+    <div className="relative w-full max-w-full min-w-0">
       <input
         id="destination"
         name="destination"

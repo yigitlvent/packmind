@@ -1,9 +1,12 @@
 "use client";
 
 import { useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { flushSync } from "react-dom";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
+  alignEndToStart,
+  datesAreOrdered,
   datesAreValid,
   diffDaysInclusive,
   formatDateRange,
@@ -65,6 +68,7 @@ export function TripForm({
   const [error, setError] = useState<string | null>(null);
   const [attempted, setAttempted] = useState(false);
   const [destinationSearchFailed, setDestinationSearchFailed] = useState(false);
+  const [endRejected, setEndRejected] = useState(false);
   const [touched, setTouched] = useState({
     destination: false,
     start_date: false,
@@ -90,7 +94,11 @@ export function TripForm({
     destinationSearchFailed,
   );
   const startDateError = startDateMessage(form.start_date);
-  const endDateError = endDateMessage(form.start_date, form.end_date);
+  const endDateError = endDateMessage(
+    form.start_date,
+    form.end_date,
+    endRejected,
+  );
   const tripTypeError = tripTypeMessage(form.trip_type);
   const datesValid = datesAreValid(form.start_date, form.end_date);
   const duration = datesValid
@@ -98,7 +106,10 @@ export function TripForm({
     : 0;
   const detailsValid = !destinationError && datesValid;
   const formValid = detailsValid && !tripTypeError;
-  const readyToLookup = locationResolved && datesValid;
+  const readyToLookup =
+    locationResolved &&
+    datesAreOrdered(form.start_date, form.end_date) &&
+    datesValid;
   const weatherPending =
     readyToLookup &&
     (weatherLookup.status === "checking" || weatherLookup.status === "idle");
@@ -144,11 +155,25 @@ export function TripForm({
     }));
   }
 
+  function applyDateState(start_date: string, end_date: string) {
+    setForm((current) => ({
+      ...current,
+      start_date,
+      end_date,
+      duration: datesAreValid(start_date, end_date)
+        ? diffDaysInclusive(start_date, end_date)
+        : 0,
+      weather_summary: datesAreValid(start_date, end_date)
+        ? current.weather_summary
+        : null,
+    }));
+  }
+
   function updateDates(next: { start_date?: string; end_date?: string }) {
     setForm((current) => {
       const start_date = next.start_date ?? current.start_date;
       let end_date = next.end_date ?? current.end_date;
-      if (isEndBeforeStart(start_date, end_date)) {
+      if (next.start_date !== undefined && !parseIsoDate(start_date)) {
         end_date = "";
       }
       return {
@@ -158,8 +183,32 @@ export function TripForm({
         duration: datesAreValid(start_date, end_date)
           ? diffDaysInclusive(start_date, end_date)
           : 0,
-        weather_summary: null,
+        weather_summary: datesAreValid(start_date, end_date)
+          ? current.weather_summary
+          : null,
       };
+    });
+
+    if (next.start_date !== undefined) {
+      setEndRejected(false);
+    } else if (
+      next.end_date !== undefined &&
+      !isEndBeforeStart(form.start_date, next.end_date)
+    ) {
+      setEndRejected(false);
+    }
+  }
+
+  function normalizeEndBeforePicker(input: HTMLInputElement) {
+    const start_date = form.start_date;
+    if (!parseIsoDate(start_date)) return;
+    const end_date = alignEndToStart(start_date, form.end_date);
+    if (end_date === form.end_date) return;
+
+    input.value = end_date;
+    flushSync(() => {
+      applyDateState(start_date, end_date);
+      setEndRejected(false);
     });
   }
 
@@ -167,12 +216,20 @@ export function TripForm({
     event.preventDefault();
     setAttempted(true);
 
+    const hasOrderedDates = datesAreOrdered(form.start_date, form.end_date);
+    if (!hasOrderedDates && form.start_date && form.end_date) {
+      setEndRejected(true);
+    }
+
     if (
       destinationError ||
       startDateError ||
       endDateError ||
       tripTypeError ||
       !isTripType(form.trip_type) ||
+      !form.start_date ||
+      !form.end_date ||
+      !hasOrderedDates ||
       !datesAreValid(form.start_date, form.end_date)
     ) {
       return;
@@ -244,17 +301,14 @@ export function TripForm({
   const showDestError = (attempted || touched.destination) && destinationError;
   const showStartError = (attempted || touched.start_date) && startDateError;
   const showEndError =
-    (attempted ||
-      touched.end_date ||
-      (Boolean(form.start_date) && Boolean(form.end_date))) &&
-    endDateError;
+    (endRejected || attempted || touched.end_date) && endDateError;
   const showTripTypeError = (attempted || touched.trip_type) && tripTypeError;
 
   return (
     <form
       onSubmit={handleSubmit}
       noValidate
-      className="min-w-0 space-y-8"
+      className="trip-form min-w-0 space-y-8"
       aria-busy={submitting}
     >
       <Field label="Destination" htmlFor="destination">
@@ -279,40 +333,53 @@ export function TripForm({
         ) : null}
       </Field>
 
-      <div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2">
+      <div className="date-grid grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2">
         <Field label="Start date" htmlFor="start_date">
-          <input
-            id="start_date"
-            name="start_date"
-            type="date"
-            value={form.start_date}
-            onChange={(event) =>
-              updateDates({ start_date: event.target.value })
-            }
-            onBlur={() =>
-              setTouched((current) => ({ ...current, start_date: true }))
-            }
-            aria-invalid={Boolean(showStartError)}
-            className="input"
-          />
+          <span className="date-field">
+            <input
+              id="start_date"
+              name="start_date"
+              type="date"
+              value={form.start_date}
+              onChange={(event) =>
+                updateDates({ start_date: event.target.value })
+              }
+              onBlur={() =>
+                setTouched((current) => ({ ...current, start_date: true }))
+              }
+              aria-invalid={Boolean(showStartError)}
+              className="input"
+            />
+          </span>
           {showStartError ? (
             <p className="mt-2 text-sm text-amber-800">{startDateError}</p>
           ) : null}
         </Field>
         <Field label="End date" htmlFor="end_date">
-          <input
-            id="end_date"
-            name="end_date"
-            type="date"
-            value={form.end_date}
-            min={form.start_date || undefined}
-            onChange={(event) => updateDates({ end_date: event.target.value })}
-            onBlur={() =>
-              setTouched((current) => ({ ...current, end_date: true }))
-            }
-            aria-invalid={Boolean(showEndError)}
-            className="input"
-          />
+          <span className="date-field">
+            <input
+              id="end_date"
+              name="end_date"
+              type="date"
+              value={form.end_date}
+              min={form.start_date || undefined}
+              onPointerDown={(event) =>
+                normalizeEndBeforePicker(event.currentTarget)
+              }
+              onFocus={(event) =>
+                normalizeEndBeforePicker(event.currentTarget)
+              }
+              onChange={(event) => updateDates({ end_date: event.target.value })}
+              onBlur={() => {
+                setTouched((current) => ({ ...current, end_date: true }));
+                setEndRejected(
+                  isEndBeforeStart(form.start_date, form.end_date),
+                );
+              }}
+              aria-invalid={Boolean(showEndError)}
+              className="input"
+            />
+          </span>
           {showEndError ? (
             <p className="mt-2 text-sm text-amber-800">{endDateError}</p>
           ) : null}
@@ -512,11 +579,15 @@ function startDateMessage(startDate: string) {
   return null;
 }
 
-function endDateMessage(startDate: string, endDate: string) {
+function endDateMessage(
+  startDate: string,
+  endDate: string,
+  rejected: boolean,
+) {
   if (!endDate) return "Choose an end date.";
   if (!parseIsoDate(endDate)) return "Enter a valid end date.";
-  if (startDate && parseIsoDate(startDate) && endDate < startDate) {
-    return "End date must be on or after the start date.";
+  if (rejected || isEndBeforeStart(startDate, endDate)) {
+    return "End date can't be before the start date.";
   }
   if (startDate && parseIsoDate(startDate)) {
     const days = diffDaysInclusive(startDate, endDate);
@@ -609,7 +680,7 @@ function Field({
   children: ReactNode;
 }) {
   return (
-    <div className="min-w-0">
+    <div className="field min-w-0">
       <label htmlFor={htmlFor} className="mb-2 block text-sm font-medium text-ink">
         {label}
       </label>
