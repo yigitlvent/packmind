@@ -25,7 +25,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
-      lang="en"
+      lang="en-US"
       className={`${outfit.variable} ${fraunces.variable} h-full antialiased`}
     >
       <body className="min-h-full bg-sand text-ink">

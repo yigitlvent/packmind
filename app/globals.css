@@ -57,8 +57,25 @@ body {
 /* iOS Safari date inputs keep an intrinsic min-width unless
    appearance and the inner date-edit shadow tree are reset. */
 .date-field {
+  position: relative;
   display: block;
   inline-size: 100%;
+}
+
+.date-display {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  padding: 0.85rem 1rem;
+  font-size: 1rem;
+  color: var(--color-ink);
+}
+
+.date-display[data-empty="true"] {
+  color: var(--color-ink-muted);
 }
 
 input[type="date"].input {
@@ -71,12 +88,14 @@ input[type="date"].input {
   box-sizing: border-box;
   -webkit-appearance: none;
   appearance: none;
+  color: transparent;
 }
 
 input[type="date"].input::-webkit-date-and-time-value {
   text-align: left;
   min-width: 0;
   min-inline-size: 0;
+  color: transparent;
 }
 
 input[type="date"].input::-webkit-datetime-edit,
@@ -88,6 +107,7 @@ input[type="date"].input::-webkit-datetime-edit-year-field {
   min-width: 0;
   min-inline-size: 0;
   max-width: 100%;
+  color: transparent;
 }
 
 .input:focus {

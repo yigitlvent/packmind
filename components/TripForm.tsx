@@ -10,6 +10,7 @@ import {
   datesAreValid,
   diffDaysInclusive,
   formatDateRange,
+  formatMdY,
   isEndBeforeStart,
   parseIsoDate,
 } from "@/lib/dates";
@@ -383,6 +384,13 @@ export function TripForm({
       <div className="date-grid grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2">
         <Field label="Start date" htmlFor="start_date">
           <span className="date-field">
+            <span
+              className="date-display"
+              data-empty={!form.start_date}
+              aria-hidden
+            >
+              {form.start_date ? formatMdY(form.start_date) : "MM/DD/YYYY"}
+            </span>
             <input
               ref={startInputRef}
               id="start_date"
@@ -411,6 +419,13 @@ export function TripForm({
         </Field>
         <Field label="End date" htmlFor="end_date">
           <span className="date-field">
+            <span
+              className="date-display"
+              data-empty={!form.end_date}
+              aria-hidden
+            >
+              {form.end_date ? formatMdY(form.end_date) : "MM/DD/YYYY"}
+            </span>
             <input
               ref={endInputRef}
               id="end_date"
