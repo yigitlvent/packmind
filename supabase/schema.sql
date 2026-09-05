@@ -17,6 +17,8 @@ create table if not exists public.trips (
   trip_type text not null check (trip_type in ('business', 'vacation', 'weekend')),
   weather text not null check (weather in ('hot', 'cold', 'rainy', 'mixed', 'mild')),
   weather_summary text,
+  destination_lat double precision,
+  destination_lon double precision,
   taking_laptop boolean not null default false,
   gym boolean not null default false,
   swimming boolean not null default false,
@@ -50,6 +52,12 @@ alter table public.trips
 
 alter table public.trips
   add column if not exists weather_summary text;
+
+alter table public.trips
+  add column if not exists destination_lat double precision;
+
+alter table public.trips
+  add column if not exists destination_lon double precision;
 
 create index if not exists trips_session_id_idx on public.trips (session_id);
 create index if not exists trips_user_id_idx on public.trips (user_id);

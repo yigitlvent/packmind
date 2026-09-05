@@ -9,6 +9,8 @@ import {
   formatDateRange,
   parseIsoDate,
 } from "@/lib/dates";
+import { DestinationField } from "@/components/DestinationField";
+import { hasResolvedCoordinates, type GeoPlace } from "@/lib/geocoding";
 import { createTrip, updateTrip } from "@/lib/trips";
 import { formatTemperatureRange, weatherHeadline } from "@/lib/weatherProfile";
 import {
@@ -33,6 +35,8 @@ const EMPTY_TRIP: TripFormValues = {
   trip_type: "",
   weather: "mild",
   weather_summary: null,
+  destination_lat: null,
+  destination_lon: null,
   taking_laptop: false,
   gym: false,
   swimming: false,
@@ -59,6 +63,7 @@ export function TripForm({
   const submittingRef = useRef(false);
   const [error, setError] = useState<string | null>(null);
   const [attempted, setAttempted] = useState(false);
+  const [destinationSearchFailed, setDestinationSearchFailed] = useState(false);
   const [touched, setTouched] = useState({
     destination: false,
     start_date: false,
@@ -66,13 +71,23 @@ export function TripForm({
     trip_type: false,
   });
 
+  const locationResolved = hasResolvedCoordinates(
+    form.destination_lat,
+    form.destination_lon,
+  );
   const weatherLookup = useTripWeather(
-    form.destination,
+    form.destination_lat,
+    form.destination_lon,
     form.start_date,
     form.end_date,
+    form.destination,
   );
 
-  const destinationError = destinationMessage(form.destination);
+  const destinationError = destinationMessage(
+    form.destination,
+    locationResolved,
+    destinationSearchFailed,
+  );
   const startDateError = startDateMessage(form.start_date);
   const endDateError = endDateMessage(form.start_date, form.end_date);
   const tripTypeError = tripTypeMessage(form.trip_type);
@@ -82,20 +97,22 @@ export function TripForm({
     : 0;
   const detailsValid = !destinationError && datesValid;
   const formValid = detailsValid && !tripTypeError;
-  const readyToLookup = detailsValid;
+  const readyToLookup = locationResolved && datesValid;
   const weatherPending =
     readyToLookup &&
     (weatherLookup.status === "checking" || weatherLookup.status === "idle");
   const canSubmit = formValid && !submitting && !weatherPending;
   const currentWeatherKey = tripWeatherQueryKey(
-    form.destination,
+    form.destination_lat,
+    form.destination_lon,
     form.start_date,
     form.end_date,
   );
   const seedWeatherKey =
     mode === "edit"
       ? tripWeatherQueryKey(
-          initialValues.destination,
+          initialValues.destination_lat,
+          initialValues.destination_lon,
           initialValues.start_date,
           initialValues.end_date,
         )
@@ -109,6 +126,19 @@ export function TripForm({
     setForm((current) => ({
       ...current,
       destination,
+      destination_lat: null,
+      destination_lon: null,
+      weather_summary: null,
+    }));
+  }
+
+  function selectDestination(place: GeoPlace) {
+    setDestinationSearchFailed(false);
+    setForm((current) => ({
+      ...current,
+      destination: place.displayName,
+      destination_lat: place.latitude,
+      destination_lon: place.longitude,
       weather_summary: null,
     }));
   }
@@ -202,9 +232,11 @@ export function TripForm({
   }
 
   const showManualWeather =
-    readyToLookup &&
-    (weatherLookup.status === "unavailable" ||
-      weatherLookup.status === "error");
+    datesValid &&
+    ((readyToLookup &&
+      (weatherLookup.status === "unavailable" ||
+        weatherLookup.status === "error")) ||
+      (!locationResolved && destinationSearchFailed));
   const showDestError = (attempted || touched.destination) && destinationError;
   const showStartError = (attempted || touched.start_date) && startDateError;
   const showEndError =
@@ -222,21 +254,24 @@ export function TripForm({
       aria-busy={submitting}
     >
       <Field label="Destination" htmlFor="destination">
-        <input
-          id="destination"
-          name="destination"
+        <DestinationField
           value={form.destination}
-          onChange={(event) => updateDestination(event.target.value)}
+          resolved={locationResolved}
+          invalid={Boolean(showDestError)}
+          onChange={updateDestination}
+          onSelect={selectDestination}
+          onSearchFailedChange={setDestinationSearchFailed}
           onBlur={() =>
             setTouched((current) => ({ ...current, destination: true }))
           }
-          placeholder="City or destination"
-          autoComplete="off"
-          aria-invalid={Boolean(showDestError)}
-          className="input"
         />
         {showDestError ? (
           <p className="mt-2 text-sm text-amber-800">{destinationError}</p>
+        ) : destinationSearchFailed && !locationResolved && form.destination.trim() ? (
+          <p className="mt-2 text-sm text-ink-muted">
+            We couldn&apos;t verify that destination. You can continue and choose
+            weather manually.
+          </p>
         ) : null}
       </Field>
 
@@ -314,7 +349,9 @@ export function TripForm({
               ? "Detailed forecast isn't available yet. Choose the weather you expect."
               : weatherLookup.status === "error"
                 ? "We couldn't check the forecast. Choose the weather you expect."
-                : "Choose the weather you expect."}
+                : destinationSearchFailed && !locationResolved
+                  ? "We couldn't verify that destination. Choose the weather you expect."
+                  : "Choose the weather you expect."}
           </p>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
             {WEATHER_OPTIONS.map((option) => (
@@ -448,8 +485,15 @@ export function TripForm({
   );
 }
 
-function destinationMessage(destination: string) {
+function destinationMessage(
+  destination: string,
+  resolved: boolean,
+  searchFailed: boolean,
+) {
   if (!destination.trim()) return "Enter a destination.";
+  if (!resolved && !searchFailed) {
+    return "Please select a destination from the suggestions.";
+  }
   return null;
 }
 

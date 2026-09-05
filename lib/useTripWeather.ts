@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { datesAreValid } from "@/lib/dates";
-import { geocodeDestination, type GeoPlace } from "@/lib/geocoding";
+import { hasResolvedCoordinates } from "@/lib/geocoding";
 import { fetchTripWeather } from "@/lib/weather";
 import {
   buildWeatherProfile,
@@ -46,27 +46,34 @@ const CHECKING: TripWeatherState = {
 };
 
 export function tripWeatherQueryKey(
-  destination: string,
+  latitude: number | null | undefined,
+  longitude: number | null | undefined,
   startDate: string,
   endDate: string,
 ) {
-  const trimmed = destination.trim();
-  if (!trimmed || !datesAreValid(startDate, endDate)) return "";
-  return `${trimmed.toLowerCase()}|${startDate}|${endDate}`;
+  if (
+    !hasResolvedCoordinates(latitude, longitude) ||
+    !datesAreValid(startDate, endDate)
+  ) {
+    return "";
+  }
+  return `${latitude!.toFixed(4)}|${longitude!.toFixed(4)}|${startDate}|${endDate}`;
 }
 
 export function useTripWeather(
-  destination: string,
+  latitude: number | null | undefined,
+  longitude: number | null | undefined,
   startDate: string,
   endDate: string,
+  placeName = "",
 ) {
-  const key = tripWeatherQueryKey(destination, startDate, endDate);
+  const key = tripWeatherQueryKey(latitude, longitude, startDate, endDate);
   const [state, setState] = useState<TripWeatherState>(EMPTY);
   const [resolvedKey, setResolvedKey] = useState("");
   const requestId = useRef(0);
 
   useEffect(() => {
-    if (!key) {
+    if (!key || !hasResolvedCoordinates(latitude, longitude)) {
       requestId.current += 1;
       return;
     }
@@ -76,19 +83,9 @@ export function useTripWeather(
       if (id !== requestId.current) return;
       void (async () => {
         try {
-          const place: GeoPlace | null = await geocodeDestination(
-            destination.trim(),
-          );
-          if (id !== requestId.current) return;
-          if (!place) {
-            setResolvedKey(key);
-            setState({ ...EMPTY, status: "error" });
-            return;
-          }
-
           const forecast = await fetchTripWeather({
-            latitude: place.latitude,
-            longitude: place.longitude,
+            latitude: latitude as number,
+            longitude: longitude as number,
             startDate,
             endDate,
           });
@@ -99,7 +96,7 @@ export function useTripWeather(
             setState({
               ...EMPTY,
               status: "unavailable",
-              placeName: place.displayName,
+              placeName: placeName || null,
               outOfRange: forecast.outOfRange,
             });
             return;
@@ -117,7 +114,7 @@ export function useTripWeather(
               profile,
             }),
             headline: weatherHeadline(profile),
-            placeName: place.displayName,
+            placeName: placeName || null,
             minTempC: forecast.minTempC,
             maxTempC: forecast.maxTempC,
             rainProbability: forecast.rainProbability,
@@ -129,10 +126,10 @@ export function useTripWeather(
           setState({ ...EMPTY, status: "error" });
         }
       })();
-    }, 450);
+    }, 250);
 
     return () => window.clearTimeout(timer);
-  }, [destination, endDate, key, startDate]);
+  }, [endDate, key, latitude, longitude, placeName, startDate]);
 
   if (!key) return EMPTY;
   if (resolvedKey !== key) return CHECKING;

@@ -1,16 +1,19 @@
 import { NextRequest } from "next/server";
-import { resolveDestination } from "@/lib/geocoding";
+import { resolveDestinationSuggestions } from "@/lib/geocoding";
 
 export async function GET(request: NextRequest) {
   const query = request.nextUrl.searchParams.get("q")?.trim() ?? "";
   if (query.length < 2) {
-    return Response.json({ place: null }, { status: 400 });
+    return Response.json({ place: null, places: [] }, { status: 400 });
   }
 
   try {
-    const place = await resolveDestination(query);
-    return Response.json({ place });
+    const places = await resolveDestinationSuggestions(query);
+    return Response.json({ places, place: places[0] ?? null });
   } catch {
-    return Response.json({ place: null, error: "lookup_failed" }, { status: 502 });
+    return Response.json(
+      { place: null, places: [], error: "lookup_failed" },
+      { status: 502 },
+    );
   }
 }

@@ -18,6 +18,8 @@ export interface Trip {
   trip_type: TripType;
   weather: Weather;
   weather_summary: string | null;
+  destination_lat: number | null;
+  destination_lon: number | null;
   taking_laptop: boolean;
   gym: boolean;
   swimming: boolean;
@@ -34,6 +36,8 @@ export interface CreateTripInput {
   trip_type: TripType;
   weather: Weather;
   weather_summary: string | null;
+  destination_lat: number | null;
+  destination_lon: number | null;
   taking_laptop: boolean;
   gym: boolean;
   swimming: boolean;
@@ -64,6 +68,8 @@ export function tripToFormValues(trip: Trip): CreateTripInput {
     trip_type: trip.trip_type,
     weather: isWeatherProfile(trip.weather) ? trip.weather : "mild",
     weather_summary: trip.weather_summary,
+    destination_lat: trip.destination_lat ?? null,
+    destination_lon: trip.destination_lon ?? null,
     taking_laptop: trip.taking_laptop,
     gym: trip.gym,
     swimming: trip.swimming,

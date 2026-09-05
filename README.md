@@ -27,7 +27,7 @@ Plan a trip with a real destination and dates. The form starts empty, with no tr
 - Trip type: Business (you must choose one)
 - Activities: Gym
 - Laptop: yes
-- Weather: fetched after destination and both dates are entered (manual fallback if the forecast is unavailable)
+- Weather: fetched after a destination is selected from suggestions and both dates are entered (manual fallback if the forecast is unavailable)
 
 Build the list, then pack **Laptop** and **Gym clothes**. Leave **Laptop charger**, **Gym shoes**, and rain protection unpacked if rain is expected. Run Final Check — you should see those gaps.
 
@@ -40,6 +40,7 @@ Build the list, then pack **Laptop** and **Gym clothes**. Leave **Laptop charger
    - `supabase/migration_weather_dates.sql` for trip dates and the `mild` weather profile
    - `supabase/migration_user_saved_items.sql` for Google users’ reusable packing items
    - `supabase/migration_guest_trip_migration.sql` to move guest trips into a Google account after sign-in
+   - `supabase/migration_destination_coords.sql` to store selected destination coordinates
 4. Copy `.env.example` to `.env.local` and add:
 
 ```
